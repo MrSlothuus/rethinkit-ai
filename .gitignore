@@ -8,10 +8,10 @@ dist/
 .cache/
 
 # Backend (already deployed as Worker)
-qblog-backend/
+qnews-backend/
 
 # Worker source (deployed separately)
-qblog-worker/
+qnews-worker/
 
 # Backups
 *-backup.html
