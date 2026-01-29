@@ -199,6 +199,39 @@
             padding: var(--space-xl);
             color: var(--text-secondary);
         }
+
+        .topic-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: var(--space-sm) var(--space-md);
+            background: rgba(255, 149, 0, 0.15);
+            border: 1px solid var(--orange);
+            border-radius: 20px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .topic-remove {
+            background: none;
+            border: none;
+            color: var(--orange);
+            font-size: 1.3rem;
+            cursor: pointer;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .topic-remove:hover {
+            color: #ff6b00;
+            transform: scale(1.2);
+        }
     </style>
 </head>
 <body class="newsletter-page">
@@ -249,8 +282,9 @@
     <script src="auth.js"></script>
     <script>
         const API_URL = 'https://qnews-newsletter-api.ulrich-8db.workers.dev';
-        let availableTopics = [];
+        const MAX_TOPICS = 5;
         let currentSubscription = null;
+        let userTopics = [];
 
         // Load topics and subscription status
         async function loadPage() {
@@ -279,16 +313,10 @@
                 return;
             }
 
-            // Load topics and subscription status
+            // Load subscription status
             try {
-                const [topicsRes, subRes] = await Promise.all([
-                    fetch(`${API_URL}/api/topics`),
-                    getSubscriptionStatus()
-                ]);
-
-                availableTopics = (await topicsRes.json()).topics;
-                currentSubscription = subRes;
-
+                currentSubscription = await getSubscriptionStatus();
+                userTopics = currentSubscription.subscriber?.topics || [];
                 renderSubscriptionForm();
             } catch (error) {
                 console.error('Error loading page:', error);
@@ -341,18 +369,42 @@
 
                     <div id="messageArea"></div>
 
-                    <h3 style="margin-bottom: var(--space-md);">Choose Your Topics</h3>
-                    <div class="topics-grid">
-                        ${availableTopics.map(topic => `
-                            <div class="topic-checkbox">
-                                <input type="checkbox" id="topic-${topic.id}" value="${topic.id}" 
-                                    ${selectedTopics.includes(topic.id) ? 'checked' : ''}>
-                                <label class="topic-label" for="topic-${topic.id}">
-                                    <span class="topic-icon">${topic.icon}</span>
-                                    <span class="topic-name">${topic.label}</span>
-                                </label>
+                    <h3 style="margin-bottom: var(--space-md);">Your Topics (${userTopics.length}/${MAX_TOPICS})</h3>
+                    <p style="color: var(--text-secondary); margin-bottom: var(--space-md); font-size: 0.95rem;">
+                        Enter topics you're interested in (e.g., "Artificial Intelligence", "Climate Change", "Web3")
+                    </p>
+                    
+                    <div style="margin-bottom: var(--space-lg);">
+                        <div id="topicTags" style="display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-bottom: var(--space-md);">
+                            ${userTopics.map((topic, index) => `
+                                <span class="topic-tag">
+                                    ${topic}
+                                    <button class="topic-remove" onclick="removeTopic(${index})" type="button">×</button>
+                                </span>
+                            `).join('')}
+                        </div>
+                        
+                        ${userTopics.length < MAX_TOPICS ? `
+                            <div style="display: flex; gap: var(--space-sm);">
+                                <input 
+                                    type="text" 
+                                    id="topicInput" 
+                                    placeholder="Type a topic and press Enter"
+                                    style="flex: 1; padding: var(--space-md); background: var(--bg-secondary); border: 2px solid rgba(255, 149, 0, 0.2); border-radius: 8px; color: var(--text-primary); font-size: 1rem;"
+                                    onkeypress="handleTopicKeyPress(event)"
+                                />
+                                <button 
+                                    class="subscribe-btn" 
+                                    style="width: auto; padding: var(--space-md) var(--space-lg);"
+                                    onclick="addCurrentTopic()"
+                                    type="button"
+                                >
+                                    Add
+                                </button>
                             </div>
-                        `).join('')}
+                        ` : `
+                            <p style="color: var(--orange); font-weight: 500;">Maximum ${MAX_TOPICS} topics reached</p>
+                        `}
                     </div>
 
                     <div class="frequency-select">
@@ -377,17 +429,56 @@
             `;
         }
 
+        // Add topic
+        function addTopic(topicText) {
+            const topic = topicText.trim();
+            
+            if (!topic) return;
+            
+            if (userTopics.length >= MAX_TOPICS) {
+                alert(`Maximum ${MAX_TOPICS} topics allowed`);
+                return;
+            }
+            
+            if (userTopics.includes(topic)) {
+                alert('This topic is already added');
+                return;
+            }
+            
+            userTopics.push(topic);
+            renderSubscriptionForm();
+        }
+
+        // Remove topic
+        function removeTopic(index) {
+            userTopics.splice(index, 1);
+            renderSubscriptionForm();
+        }
+
+        // Handle Enter key in topic input
+        function handleTopicKeyPress(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                addCurrentTopic();
+            }
+        }
+
+        // Add current topic from input
+        function addCurrentTopic() {
+            const input = document.getElementById('topicInput');
+            if (input) {
+                addTopic(input.value);
+                input.value = '';
+            }
+        }
+
         // Handle subscribe/update
         async function handleSubscribe() {
             const btn = document.getElementById('subscribeBtn');
             const messageArea = document.getElementById('messageArea');
-            
-            // Get selected topics
-            const checkboxes = document.querySelectorAll('.topic-checkbox input:checked');
-            const topics = Array.from(checkboxes).map(cb => cb.value);
 
-            if (topics.length === 0) {
-                messageArea.innerHTML = '<div class="message error">Please select at least one topic</div>';
+            if (userTopics.length === 0) {
+                messageArea.innerHTML = '<div class="message error">Please add at least one topic</div>';
                 return;
             }
 
@@ -406,7 +497,7 @@
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ topics, frequency })
+                    body: JSON.stringify({ topics: userTopics, frequency })
                 });
 
                 const result = await res.json();
