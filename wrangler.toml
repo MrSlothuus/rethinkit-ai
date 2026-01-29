@@ -1,0 +1,16 @@
+name = "rethinkit-groq-proxy"
+main = "worker-groq-proxy.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+ENVIRONMENT = "production"
+
+# To deploy:
+# 1. Add your Groq API key as a secret:
+#    npx wrangler secret put GROQ_API_KEY
+#
+# 2. Deploy the worker:
+#    npx wrangler deploy
+#
+# 3. Set up route in Cloudflare Dashboard:
+#    Route pattern: *rethinkit.pages.dev/api/groq
